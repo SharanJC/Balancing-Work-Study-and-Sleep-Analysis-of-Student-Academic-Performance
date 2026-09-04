@@ -1,0 +1,353 @@
+---
+title: "Student-Performance-Analysis"
+author: "SharanJC"
+date: "2026-09-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Overview 
+Analysis on  student performance, and study habits  data set to explore how part-time employment may influence in students study, sleep hours and academic grades. The analysis focuses on identifying patterns and relationships between these factors. Exploratory data analysis, visualizations, correlation analysis, and regression modelling are used to compare students with and without part-time jobs and to examine whether work commitments may affect the balance between study, sleep and academic achievement. 
+
+## Reserach Question 
+### How does having a part-time job influence students study hours, sleep duration, & academic performance?
+
+
+## Dataset Overview
+The data set contains approximately 1,000 rows of information relating to students academic performance, study habits, and aspects of their daily lives. The variables used in this analysis are part_time_job, final_grade, sleep_hours and study_time_hours. There are two categorical variables, part_time_job and final_grade, and two numerical variables, study_time_hours and sleep_hours. The part_time_job variable has two categories, Yes and No, indicating whether a student has a part-time job. The final_grade variable is an ordered categorical variable ranging from A to F, representing students academic Performance. 
+
+### Required Libraries
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, include=TRUE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(MASS)
+
+# library(corrplot)
+# library(broom)
+#install.packages("vcd")
+```
+
+### Dataset Import
+```{r echo=TRUE, results='hide', message=FALSE, warning=FALSE, include=TRUE}
+student_data <- read_csv("student-performance-data.csv")
+```
+
+
+#### Understanding the Dataset
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+head(student_data)
+```
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Summary of first few rows of dataset
+summary(student_data)
+```
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Summary Stats of selected variables
+student_data |>
+  dplyr::select(study_time_hours, sleep_hours, part_time_job, final_grade)|>
+  summary()
+```
+
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# (Rows, Columns)
+dim(student_data)
+
+# Name of all Columns 
+names(student_data)
+```
+
+
+
+
+
+## Data Cleaning and Preparation
+
+#### Missing & Duplicated Values Analysis
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Check for missing data 
+sum(is.na(student_data))
+sum(student_data %in% c("", " ", "_", "?"), na.rm = TRUE)
+
+# Check for Duplicates 
+sum(duplicated(student_data))
+```
+
+
+
+
+#### Variable Conversion and Ordering
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Convert part time job (yes & no) to a categorical variable
+student_data$part_time_job <- as.factor(student_data$part_time_job)
+
+# Convert final_grade to a categorical variable
+student_data$final_grade <- as.factor(student_data$final_grade)
+
+levels(student_data$final_grade)
+
+student_data$final_grade <- factor(student_data$final_grade, levels=c("A", "B","C","D","E","F"), order = FALSE)
+```
+
+## Exploratory Data Analysis
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Bar graph of students who have (yes) and have not(no) part time jobs 
+
+# Number of students part time jobs status
+table(student_data$part_time_job)
+
+prop.table(table(student_data$part_time_job)) *100
+
+
+# Plot Graph
+ggplot(student_data,aes(x=part_time_job, fill = part_time_job)) +
+  geom_bar()+
+  scale_fill_manual(values = c("No"="darkred", "Yes"="darkseagreen"))+
+  labs(
+    title = "Student With & Without Part time Jobs",
+    x = "Part Time Job",
+    y = "Number of Students"
+  )
+```
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Histogram of Students Study Duration
+summary(student_data$study_time_hours)
+
+ggplot(student_data,aes(x = study_time_hours))+
+  geom_histogram(bins=20, fill = "cornflowerblue", color="darkblue")+
+  labs(
+    title = "Distribution of Student study time per hour",
+    x = "Hour",
+    y = "Frequency"
+  )
+```
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Histogram of Student Sleep Hours 
+summary(student_data$sleep_hours)
+
+ggplot(student_data,aes(x = sleep_hours))+
+  geom_histogram(bins=20, fill = "darkblue", color="white")+
+  labs(
+    title="Distribution of Student Sleep Patterns",
+    x="Hour",
+    y="Frequency"
+  )
+```
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Bar graph of Students final grades
+summary(student_data$final_grade)
+
+
+ggplot(student_data,aes(x = final_grade))+
+  geom_bar(bins=20, fill = "gold")+
+  labs(
+    title="Distribution of Student Final Grade",
+    x="Hour",
+    y="Frequency"
+  )
+
+```
+
+
+
+### Visual Comparison of Selected Variables
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Group students average by whether they have a part-time job
+student_data |>
+  group_by(part_time_job)|>
+  summarise(
+    avg_study_Hr = round(mean(study_time_hours, na.rm=TRUE), 2),
+    avg_sleep_Hr = round(mean(sleep_hours, na.rm=TRUE), 2)
+  )
+
+# Percentage & sum of students part time job status to final grade  
+student_data |>
+  count(part_time_job, final_grade) |>
+  group_by(part_time_job) |>
+  mutate (Percentage = round(n / sum(n) * 100,2)) |>
+  ungroup()
+```
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Box plot of students who study hours and part time job status
+ggplot(student_data, aes(x = part_time_job, y=study_time_hours, fill = part_time_job )) +
+  geom_boxplot()+
+  scale_fill_manual(values = c("No"="darkred", "Yes"="darkseagreen"))+
+  labs(
+    title = "Study Hours by Part time Employement",
+    x = "Number of Part time job",
+    y= "Number of Study Hours"
+  )
+
+# Bar graph students who study hours and part time job status
+ggplot(student_data, aes(x = study_time_hours, fill = part_time_job)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Study hours by Part-Time Job Status",
+    x = "Study Hours",
+    y = "Number of Students",
+    fill = "Part-Time Job"
+  )
+```
+
+
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Box plot of students who Sleep hours and part time job status
+ggplot(student_data, aes(x = part_time_job, y=sleep_hours, fill = part_time_job )) +
+  geom_boxplot()+
+  scale_fill_manual(values = c("No"="darkred", "Yes"="darkseagreen"))+
+  labs(
+    title = "Sleep Hours by Part time Employement",
+    x = "Number of Part time job",
+    y= "Number of Sleep Hours"
+  )
+
+# Bar graph students who sleep hours and part time job status
+ggplot(student_data, aes(x = sleep_hours, fill = part_time_job)) +
+  geom_bar(position = "dodge")+
+  labs(
+    title = "Sleep hours by Part-Time Job Status",
+    x = "Sleep Hours",
+    y = "Number of Students",
+    fill = "Part-Time Job"
+  )
+```
+
+
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+
+# Bar graph students who final grade and part time job status
+ggplot(student_data, aes(x = final_grade, fill = part_time_job)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Final Grade by Part-Time Job Status",
+    x = "Final Grade",
+    y = "Number of Students",
+    fill = "Part-Time Job"
+  )
+
+```
+
+
+
+
+
+
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Compare the distribution of study hours across final grade categories
+ggplot(student_data, aes(x = final_grade, y = study_time_hours)) +
+  geom_boxplot(fill = "darkseagreen", color = "black") +
+  labs(
+    title = "Study Duration by Final Grade",
+    x = "Final Grade",
+    y = "Study Hours"
+  )
+```
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Compare the distribution of sleep hours across final grade categories
+ggplot(student_data, aes(x = final_grade, y = sleep_hours)) +
+  geom_boxplot(fill = "darkturquoise", color = "black") +
+  labs(
+    title = "Sleep Duration by Final Grade",
+    x = "Final Grade",
+    y = "Sleep Hours"
+  )
+```
+
+## Comparative Analysis of Group Averages
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# ==========================================================================
+# Average of students final grades with relation to study & sleep hours
+student_data |>
+  group_by(final_grade)|>
+  summarise(
+    avg_studyHr = round(mean(study_time_hours, na.rm=TRUE),2),
+    avg_sleepHr = round(mean(sleep_hours, na.rm=TRUE),2)
+  )
+
+# ==========================================================================
+# Comparison of students part-time job status relation to students study & sleep hours average
+student_data |>
+  group_by(part_time_job)|>
+  summarise( 
+    avg_studyHr = round(mean(study_time_hours, na.rm=TRUE),2), 
+    avg_sleepHr = round(mean(sleep_hours, na.rm=TRUE),2)
+  )
+
+# ==========================================================================
+# Compare average study and sleep hours by final grade and part-time job status
+student_data |>
+  summarise( .by = c(final_grade, part_time_job),
+    avg_studyHr = round(mean(study_time_hours, na.rm=TRUE),2),
+    avg_sleepHr = round(mean(sleep_hours, na.rm=TRUE),2)
+  )
+
+```
+
+## Spearman Correlation Analysis & Independent Samples t-Test
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+
+
+# Correlation between final grade and study hour
+cor(student_data$study_time_hours,as.numeric(student_data$final_grade), method="spearman", use="complete.obs")
+
+# Correlation between final grade and sleep hour 
+cor(student_data$sleep_hours, as.numeric(student_data$final_grade), method="spearman",use="complete.obs")
+
+#============================================================================================================
+
+# Test on study Hour vs part time Status
+t.test(study_time_hours ~ part_time_job, student_data)
+
+# Test on sleep Hour vs part time status 
+t.test(sleep_hours ~ part_time_job, student_data)
+```
+
+
+## Ordinal Logistic Regression Model
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Create model
+model_1 <-summary(polr(final_grade ~ study_time_hours +sleep_hours + part_time_job, student_data, Hess=TRUE))
+# Print summary model
+model_1
+```
+
+```{r, echo=TRUE, eval=TRUE, include=TRUE, results='markup'}
+# Create model
+model_2 <-summary(polr(final_grade ~ study_time_hours * part_time_job +sleep_hours * part_time_job, student_data, Hess=TRUE))
+
+# Print summary model
+model_2
+```
+## Conclusion
+
+### How does having a part-time job influence students study hours, sleep duration, & academic performance?
+
+A part-time job relates to student's study hours, sleep duration and academic performance. The spearman correlation showed a moderate relationship between study hours and final grade ($r_s$ = -0.5315), while the relationship between sleep duration and final grade was much weaker ($r_s$ = -0.1418). Because the final grades were arranged from higher-performing grades toward lower performing grades, the negative study hour correlation indicates that students who studied more tended to achieve better. 
+
+The two sample t-test found no statistically significance difference in study hours between students with and without part-time jobs (p = 0.5421). Students without part-time jobs studied an average of 3.59 hours compared with 3.53 hours for students with a part-time job. Similarly, there was no statistically significant difference in sleep duration (p= 0.7629) with average of 6.79 hours for students without a job and 6.82 hours for students with a job. These findings tell us that having a part-time job was not associated with a meaningful difference in the amount of time students spent studying or sleeping.
+
+The ordinal logistic regression provided further evidence that study time was strongly associated with final grade(t = -14.231), while sleep duration also showed an association (t = -3.712). Part-time job status had a coefficient with a t-value of 2.383. The relation between part-time job status and study hours ( t = -1.047) and the relation between part-time job and sleep duration (t = -1.317) were both below the approximate $\pm$ 1.96 significance threshold. Therefore there was little evidence that having a part-time job significantly affected the relationship between study or sleep hours and academic performance. 
+
+In conclusion study hours appear to have the strongest relationship with academic performance, while sleep duration has a weaker relationship. Students having a part-time job doe not appear to change or affect students sleep or study duration, nor does it strongly change how those factors relate to final grades. 
+
